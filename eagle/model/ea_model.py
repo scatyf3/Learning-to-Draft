@@ -22,12 +22,32 @@ from .kv_cache import initialize_past_key_values
 
 from .cnets import Model
 from .cnets1 import Model as Model1
-from .cnets_ddd import Model as Modelddd
-from .cnets_c2t import Model as Modelc2t
-from .cnets_svip import Model as Modelsvip
-from .cnets_disco import Model as Modeldisco
-from .cnets_gamma import Model as Modelgamma
-from .cnets_spec_plus import Model as Modelspecplus
+
+# Optional experimental cnet variants are not always shipped with lightweight releases.
+try:
+    from .cnets_ddd import Model as Modelddd
+except ImportError:
+    Modelddd = None
+try:
+    from .cnets_c2t import Model as Modelc2t
+except ImportError:
+    Modelc2t = None
+try:
+    from .cnets_svip import Model as Modelsvip
+except ImportError:
+    Modelsvip = None
+try:
+    from .cnets_disco import Model as Modeldisco
+except ImportError:
+    Modeldisco = None
+try:
+    from .cnets_gamma import Model as Modelgamma
+except ImportError:
+    Modelgamma = None
+try:
+    from .cnets_spec_plus import Model as Modelspecplus
+except ImportError:
+    Modelspecplus = None
 from .configs import EConfig
 from stable_baselines3 import PPO
 from stable_baselines3.common.policies import ActorCriticPolicy
@@ -309,30 +329,45 @@ class EaModel(nn.Module):
             bias = con["bias"]
         except:
             bias = True
+
+        def _require_optional(model_cls, name):
+            if model_cls is None:
+                raise ImportError(
+                    f"Requested dyn_depth_type='{name}' but required module is missing in eagle/model. "
+                    "Use default dyn_depth_type or add the corresponding cnets_* file."
+                )
+            return model_cls
+
         if use_eagle3:
             if dyn_depth_type=="ddd":
                 print("model ddd")
-                self.ea_layer=Modelddd(config, bias=bias, total_tokens=total_token, depth=depth, top_k=top_k,
+                Modelddd_ = _require_optional(Modelddd, "ddd")
+                self.ea_layer=Modelddd_(config, bias=bias, total_tokens=total_token, depth=depth, top_k=top_k,
                                   threshold=threshold, path=base_model_name_or_path,load_emb=True)
             elif dyn_depth_type=="svip":
                 print("model svip")
-                self.ea_layer=Modelsvip(config, bias=bias, total_tokens=total_token, depth=depth, top_k=top_k,
+                Modelsvip_ = _require_optional(Modelsvip, "svip")
+                self.ea_layer=Modelsvip_(config, bias=bias, total_tokens=total_token, depth=depth, top_k=top_k,
                                   threshold=threshold, path=base_model_name_or_path,load_emb=True)
             elif dyn_depth_type=="gammatune":
                 print("model gammatune")
-                self.ea_layer=Modelgamma(config, bias=bias, total_tokens=total_token, depth=depth, top_k=top_k,
+                Modelgamma_ = _require_optional(Modelgamma, "gammatune")
+                self.ea_layer=Modelgamma_(config, bias=bias, total_tokens=total_token, depth=depth, top_k=top_k,
                                   threshold=threshold, path=base_model_name_or_path,load_emb=True)
             elif dyn_depth_type=="c2t":
-                self.ea_layer=Modelc2t(config, bias=bias, total_tokens=total_token, depth=depth, top_k=top_k,
+                Modelc2t_ = _require_optional(Modelc2t, "c2t")
+                self.ea_layer=Modelc2t_(config, bias=bias, total_tokens=total_token, depth=depth, top_k=top_k,
                                   threshold=threshold, path=base_model_name_or_path,load_emb=True)
                 self.c2t=load_c2t_model()
             elif dyn_depth_type=="disco":
                 self.disco=load_disco_model()
-                self.ea_layer=Modeldisco(config, bias=bias, total_tokens=total_token, depth=depth, top_k=top_k,
+                Modeldisco_ = _require_optional(Modeldisco, "disco")
+                self.ea_layer=Modeldisco_(config, bias=bias, total_tokens=total_token, depth=depth, top_k=top_k,
                                   threshold=threshold, path=base_model_name_or_path,load_emb=True)
             elif dyn_depth_type=="specplus":
                 self.spec_plus=load_spec_plus_model()
-                self.ea_layer=Modelspecplus(config, bias=bias, total_tokens=total_token, depth=depth, top_k=top_k,
+                Modelspecplus_ = _require_optional(Modelspecplus, "specplus")
+                self.ea_layer=Modelspecplus_(config, bias=bias, total_tokens=total_token, depth=depth, top_k=top_k,
                                   threshold=threshold, path=base_model_name_or_path,load_emb=True)
             else:
                 self.ea_layer = Model(config, bias=bias, total_tokens=total_token, depth=depth, top_k=top_k,

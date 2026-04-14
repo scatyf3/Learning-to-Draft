@@ -1,0 +1,17 @@
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+
+# Training/runtime artifacts
+logs/
+wandb/
+checkpoints/
+slurm-*.out
+
+# OS/editor noise
+.DS_Store
+.vscode/

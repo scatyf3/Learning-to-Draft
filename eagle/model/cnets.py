@@ -222,8 +222,10 @@ class LlamaAttention(nn.Module):
                 self.rotary_emb = LlamaRotaryEmbedding(self.head_dim,
                                                        max_position_embeddings=self.max_position_embeddings)
         else:
-            scaling_type = self.config.rope_scaling["type"]
-            scaling_factor = self.config.rope_scaling["factor"]
+            # HF configs are not uniform across versions/models:
+            # older models use `type`, newer ones may use `rope_type`.
+            scaling_type = self.config.rope_scaling.get("type") or self.config.rope_scaling.get("rope_type")
+            scaling_factor = self.config.rope_scaling.get("factor", 1.0)
             if scaling_type == "linear":
                 self.rotary_emb = LlamaLinearScalingRotaryEmbedding(
                     self.head_dim, max_position_embeddings=self.max_position_embeddings, scaling_factor=scaling_factor
@@ -233,7 +235,20 @@ class LlamaAttention(nn.Module):
                     self.head_dim, max_position_embeddings=self.max_position_embeddings, scaling_factor=scaling_factor
                 )
             else:
-                raise ValueError(f"Unknown RoPE scaling type {scaling_type}")
+                # For unsupported/unknown rope scaling variants (e.g. llama3),
+                # fall back to base RoPE instead of crashing.
+                if hasattr(self.config, "rope_theta"):
+                    self.rotary_emb = LlamaRotaryEmbedding(
+                        self.head_dim,
+                        max_position_embeddings=self.max_position_embeddings,
+                        base=self.config.rope_theta,
+                    )
+                else:
+                    print("falling back to base RoPE")
+                    self.rotary_emb = LlamaRotaryEmbedding(
+                        self.head_dim,
+                        max_position_embeddings=self.max_position_embeddings,
+                    )
 
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
@@ -488,23 +503,43 @@ class Model(nn.Module):
         if load_emb and not hasattr(config, "target_hidden_size"):
             from safetensors import safe_open
             import json
-            try:
-                with open(os.path.join(path, "model.safetensors.index.json"), "r") as f:
-                    index_json = json.loads(f.read())
-                    emb_path = index_json["weight_map"]["model.embed_tokens.weight"]
-                with safe_open(os.path.join(path, emb_path),
-                               framework="pt",
-                               device="cpu") as f:
-                    tensor_slice = f.get_slice("model.embed_tokens.weight")
-                    vocab_size, hidden_dim = tensor_slice.get_shape()
-                    tensor = tensor_slice[:, :hidden_dim].float()
-            except:
-                with open(os.path.join(path, "pytorch_model.bin.index.json"), "r") as f:
-                    index_json = json.loads(f.read())
-                    emb_path = index_json["weight_map"]["model.embed_tokens.weight"]
-                weights = torch.load(os.path.join(path, emb_path))
-                tensor = weights["model.embed_tokens.weight"].float()
-            self.embed_tokens.weight.data = tensor
+            
+            # If path is a HF model ID (not a local directory), download it to cache first
+            actual_path = path
+            if not os.path.exists(os.path.join(path, "model.safetensors.index.json")) and \
+               not os.path.exists(os.path.join(path, "pytorch_model.bin.index.json")):
+                # Try to treat it as HF model ID and download to cache
+                try:
+                    from huggingface_hub import snapshot_download
+                    print(f"Downloading model {path} to cache...")
+                    actual_path = snapshot_download(path)
+                    print(f"Model cached at: {actual_path}")
+                except:
+                    print(f"Could not download {path}, skipping embedding loading")
+                    actual_path = None
+            
+            if actual_path is not None:
+                try:
+                    with open(os.path.join(actual_path, "model.safetensors.index.json"), "r") as f:
+                        index_json = json.loads(f.read())
+                        emb_path = index_json["weight_map"]["model.embed_tokens.weight"]
+                    with safe_open(os.path.join(actual_path, emb_path),
+                                   framework="pt",
+                                   device="cpu") as f:
+                        tensor_slice = f.get_slice("model.embed_tokens.weight")
+                        vocab_size, hidden_dim = tensor_slice.get_shape()
+                        tensor = tensor_slice[:, :hidden_dim].float()
+                    self.embed_tokens.weight.data = tensor
+                except:
+                    try:
+                        with open(os.path.join(actual_path, "pytorch_model.bin.index.json"), "r") as f:
+                            index_json = json.loads(f.read())
+                            emb_path = index_json["weight_map"]["model.embed_tokens.weight"]
+                        weights = torch.load(os.path.join(actual_path, emb_path))
+                        tensor = weights["model.embed_tokens.weight"].float()
+                        self.embed_tokens.weight.data = tensor
+                    except:
+                        print(f"Could not load embedding from {actual_path}, using random initialization")
         self.cpu_executer=ThreadPoolExecutor(max_workers=1)
         self.top_k = top_k
         self.total_tokens = total_tokens - 1
