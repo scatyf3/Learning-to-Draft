@@ -51,7 +51,9 @@ for dataset in datasets:
             pre_len = sum(datapoint["choices"][0].get('pre_len_times', []))
         except:
             pre_len = 0
-        accept_lens.extend(datapoint["choices"][0].get('pre_num', []))
+        task_al = datapoint["choices"][0].get('pre_num', [])
+        if task_al:
+            accept_lens.append(np.mean(task_al))
         speeds.append(tokens / times)
         speeds_all.append(tokens / (times + pre_len))
 

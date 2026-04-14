@@ -3,7 +3,6 @@ export CUDA_VISIBLE_DEVICES=$1
 # Model Paths
 base_model_path="meta-llama/Llama-3.1-8B-Instruct"
 ea_model_path="yuhuili/EAGLE3-LLaMA3.1-Instruct-8B"
-rl_token_model_path="" # Leave empty to use default 60 tokens
 rl_checkpoint_path=""  # Leave empty to start from scratch
 
 # Data and Save Directories
@@ -23,7 +22,6 @@ ent_coef=0.01
 python3 -m rl.rl_total \
     --base_model_path ${base_model_path} \
     --ea_model_path ${ea_model_path} \
-    --rl_token_model_path "${rl_token_model_path}" \
     --rl_checkpoint_path "${rl_checkpoint_path}" \
     --data_dir ${data_dir} \
     --dataset_train ${dataset_train} \

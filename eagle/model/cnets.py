@@ -235,20 +235,10 @@ class LlamaAttention(nn.Module):
                     self.head_dim, max_position_embeddings=self.max_position_embeddings, scaling_factor=scaling_factor
                 )
             else:
-                # For unsupported/unknown rope scaling variants (e.g. llama3),
-                # fall back to base RoPE instead of crashing.
-                if hasattr(self.config, "rope_theta"):
-                    self.rotary_emb = LlamaRotaryEmbedding(
-                        self.head_dim,
-                        max_position_embeddings=self.max_position_embeddings,
-                        base=self.config.rope_theta,
-                    )
-                else:
-                    print("falling back to base RoPE")
-                    self.rotary_emb = LlamaRotaryEmbedding(
-                        self.head_dim,
-                        max_position_embeddings=self.max_position_embeddings,
-                    )
+                raise ValueError(
+                    f"Unsupported RoPE scaling type '{scaling_type}'. "
+                    "Supported types are: ['linear', 'dynamic']."
+                )
 
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()

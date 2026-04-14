@@ -24,7 +24,7 @@ improvements over the highly optimized Eagle3 baseline: 36.4% on Qwen3-32B, 9.5%
 ```python
 git clone https://github.com/zhzihao/Learning-to-Draft.git
 cd Learning-to-Draft
-python -m venv ~/venvs/ea_env
+python3.11 -m venv ~/venvs/ea_env
 source ~/venvs/ea_env/bin/activate
 pip install -r requirements.txt
 ```
@@ -131,17 +131,74 @@ sh train_depth.sh
 ```
 You can change **`--rl_token_model_path`** and **`--rl_checkpoint_path`** for iterative training.
 
+## experients feedback
+
+```
+-----------------------------------------
+| rollout/                |             |
+|    ep_len_mean          | 8.51        |
+|    ep_rew_mean          | 1.47        |
+| time/                   |             |
+|    fps                  | 127         |
+|    iterations           | 33          |
+|    time_elapsed         | 531         |
+|    total_timesteps      | 67584       |
+| train/                  |             |
+|    approx_kl            | 0.026262213 |
+|    clip_fraction        | 0.0704      |
+|    clip_range           | 0.2         |
+|    entropy_loss         | -0.165      |
+|    explained_variance   | 0.381       |
+|    learning_rate        | 0.000944    |
+|    loss                 | 0.116       |
+|    n_updates            | 640         |
+|    policy_gradient_loss | 0.00323     |
+|    value_loss           | 0.215       |
+-----------------------------------------
+```
+
+
 ## Evaluation
 
 To evaluate the results, run:
 
 ```
-bash eval.sh
+python run_eval_matrix.py --gpu 2
 ```
-* **`--use_dyn_depth`**: Whether or not use depth policy
-* **`--depth_model`**: Path to your trained depth policy. 
-* **`--use_dyn_token`**: Whether or not use size policy. 
-* **`--token_model`**: Path to your trained size policy. 
+
+This script supports 3 modes:
+1. AR
+2. Naive EAGLE
+3. EAGLE with depth and size policy
+
+Default datasets are `gsm8k`, `mt_bench`, `alpaca`.
+
+Resume / rerun behavior:
+- If output is complete (line count >= question count), it is skipped.
+- If output is partial, the file is deleted and rerun from scratch.
+
+Useful examples:
+
+```bash
+# all 3 modes on default datasets
+python run_eval_matrix.py --gpu 2
+
+# only AR and Naive EAGLE
+python run_eval_matrix.py --gpu 2 --modes ar naive-eagle
+
+# run with specific policy checkpoints
+python run_eval_matrix.py \
+  --gpu 2 \
+  --modes policy \
+  --depth-policy checkpoints/depth/ppo_speculative_decoder_controller_step_420000.zip \
+  --size-policy checkpoints/size/ppo_speculative_decoder_controller_step_50000.zip
+```
+
+Important arguments:
+- `--datasets`: choose datasets to run.
+- `--modes`: choose from `ar`, `naive-eagle`, `policy`.
+- `--skip-completed/--no-skip-completed`: control skip behavior.
+- `--rerun-partial/--no-rerun-partial`: control partial-file rerun behavior.
 
 # Acknowledgements
 

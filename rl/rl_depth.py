@@ -369,7 +369,7 @@ class SpeculativeDecodingEnv(gym.Env):
         stop_token_id = self.model.tokenizer.convert_tokens_to_ids("<|eot_id|>") if self.model.tokenizer else -1
         
         self.base_reward=0
-        depth_val_action = action 
+        depth_val_action = int(np.asarray(action).item())
         reward = 0
         terminated = False
         truncated = False
