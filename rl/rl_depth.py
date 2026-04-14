@@ -64,19 +64,19 @@ parser.add_argument(
 )
 # =================================================================
 
-parser.add_argument("--n_steps", type=int, default=128)
-parser.add_argument("--gamma", type=float, default=0.99)
-parser.add_argument("--batch_size", type=int, default=64)
-parser.add_argument("--n_epochs", type=int, default=1)
-parser.add_argument("--lr", type=float, default=3e-4, help="Initial learning rate for the optimizer.")
-parser.add_argument("--total_timesteps", type=int, default=256, help="Total number of timesteps for training.")
+parser.add_argument("--n_steps", type=int, default=2048)
+parser.add_argument("--gamma", type=float, default=0.999)
+parser.add_argument("--batch_size", type=int, default=256)
+parser.add_argument("--n_epochs", type=int, default=20)
+parser.add_argument("--lr", type=float, default=1e-3, help="Initial learning rate for the optimizer.")
+parser.add_argument("--total_timesteps", type=int, default=1000000, help="Total number of timesteps for training.")
 parser.add_argument("--warmup_timesteps", type=int, default=10, help="Number of warmup timesteps for the learning rate schedule.")
 parser.add_argument("--eval_freq", type=int, default=10000, help="Frequency (in timesteps) to run evaluation.")
 parser.add_argument("--save_path", type=str, default="./")
-parser.add_argument("--ent_coef", type=float, default=0)
+parser.add_argument("--ent_coef", type=float, default=0.01)
 parser.add_argument("--dataset_train", type=str, default="humaneval")
-parser.add_argument('--pi_arch', type=int, nargs='+', default=[512, 256], help="Policy network (pi) architecture. Example: --pi_arch 512 256")
-parser.add_argument('--vf_arch', type=int, nargs='+', default=[1024, 512], help="Value network (vf) architecture. Example: --vf_arch 1024 512")
+parser.add_argument('--pi_arch', type=int, nargs='+', default=[1024], help="Policy network (pi) architecture. Example: --pi_arch 1024")
+parser.add_argument('--vf_arch', type=int, nargs='+', default=[1024, 256], help="Value network (vf) architecture. Example: --vf_arch 1024 256")
 args=parser.parse_args()
 
 def adawm_schedule(initial_lr: float, warmup_steps: int, total_timesteps: int):

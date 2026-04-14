@@ -46,10 +46,14 @@ dataset_train="humaneval"
 save_path="./checkpoints"
 
 # RL Hyperparameters
-total_timesteps=100000
-batch_size=64
-n_steps=128
-lr=3e-4
+total_timesteps=1000000 # paper说了是1m step
+batch_size=256 # minibatch size of 256
+n_steps=2048 # The PPO is configured with a rollout buffer of 2048 steps
+lr=1e-3 
+gamma=0.999
+#  20 epoch, 0.01 entropy coef A3
+n_epochs=20
+ent_coef=0.01
 
 python3 -m rl.rl_depth \
     --base_model_path ${base_model_path} \
@@ -63,9 +67,23 @@ python3 -m rl.rl_depth \
     --batch_size ${batch_size} \
     --n_steps ${n_steps} \
     --lr ${lr} \
-    --pi_arch 512 256 \
-    --vf_arch 1024 512
+    --gamma ${gamma} \
+    --n_epochs ${n_epochs} \
+    --ent_coef ${ent_coef} \
+    --pi_arch 1024 \
+    --vf_arch 1024 256
 ```
+
+Implementation Details We implement the Proximal Policy Optimization (PPO) algorithm using the Stable-Baselines3 library (Raffin et al., 2021) and train our policies on the HumanEval
+dataset (Chen et al., 2021). The size and depth policies are trained for 100k and 1M steps, respectively. Further analysis regarding the choice of training steps can be found in the Appendix C.1.
+The PPO is configured with a rollout buffer of 2048 steps and a minibatch size of 256. Due to the
+hyperight nature of the two policies, the RL training phase is highly efficient, dettailed can be found
+in Appendix A.7. A comprehensive list of all hyperparameters can be found in Appendix A.3.
+
+hyper params
+1. Size Policy - Model: 2 ffn, 1024-256, relu, gamma=0.9
+2. depth policy: 1 1024 layer, with gamma=0.999
+3. Shared params: 20 epoch, 0.01 entropy coef, 1% preheat, 1e-3 lr
 
 ### 1. Model & Path Configurations
 
@@ -85,21 +103,21 @@ python3 -m rl.rl_depth \
 ### 3. PPO Hyperparameters
 
 * **`--total_timesteps`**: Total number of interactions (steps) the policy will have with the environment. Increase this for longer training.
-* **`--lr`**: Initial learning rate (default: `3e-4`). The script uses a custom AdaWM schedule (warmup followed by linear decay).
+* **`--lr`**: Initial learning rate (paper setting: `1e-3`). The script uses a custom AdaWM schedule (warmup followed by linear decay).
 * **`--warmup_timesteps`**: Number of timesteps for the learning rate to warm up from 0 to `lr`.
-* **`--n_steps`**: Number of steps to run for each environment per update. (Rollout buffer size).
-* **`--batch_size`**: Minibatch size for the optimization step.
-* **`--n_epochs`**: Number of epochs when optimizing the surrogate loss.
-* **`--gamma`**: Discount factor for future rewards (default: `0.99`).
-* **`--ent_coef`**: Entropy coefficient for the loss calculation.
+* **`--n_steps`**: Number of steps to run for each environment per update. Paper uses `2048`.
+* **`--batch_size`**: Minibatch size for the optimization step. Paper uses `256`.
+* **`--n_epochs`**: Number of epochs when optimizing the surrogate loss. Paper uses `20`.
+* **`--gamma`**: Discount factor for future rewards. Paper uses `0.9` for size policy and `0.999` for depth policy.
+* **`--ent_coef`**: Entropy coefficient for the loss calculation. Paper uses `0.01`.
   * *Usage*: Increase this (e.g., `0.01`) if you want to encourage the policy to explore more diverse actions; keep it at `0` for pure exploitation.
 * **`--eval_freq`**: Frequency (in timesteps) to save model checkpoints and run evaluations.
 
 ### 4. Network Architecture
 
 * **`--pi_arch`**: Architecture of the Policy network (actor).
-  * *Usage*: Pass multiple integers separated by spaces. Example: `--pi_arch 512 256` creates a 2-layer MLP with 512 and 256 hidden units.
-* **`--vf_arch`**: Architecture of the Value network (critic). Example: `--vf_arch 1024 512`.
+  * *Usage*: Paper settings are `--pi_arch 1024 256` for size policy and `--pi_arch 1024` for depth policy.
+* **`--vf_arch`**: Architecture of the Value network (critic). Paper setting is `--vf_arch 1024 256` for both policies.
 
 After modifying parameters, run:
 
